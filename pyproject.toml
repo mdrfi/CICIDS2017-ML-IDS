@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cicids2017-ml-ids"
+version = "0.1.0"
+description = "Reproducible CIC-IDS2017 preprocessing and binary intrusion detection pipeline"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "joblib>=1.4",
+  "matplotlib>=3.9",
+  "numpy>=2.0",
+  "pandas>=2.2",
+  "pyarrow>=18",
+  "scikit-learn>=1.6",
+  "tqdm>=4.67",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3"]
+notebook = ["jupyter>=1.1", "seaborn>=0.13"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
