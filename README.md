@@ -61,6 +61,18 @@ uv run --extra notebook jupyter lab
 The notebook shows the raw columns and rows, attack distribution, cleaning
 results, processed dataset sizes, quality checks, and example feature plots.
 
+## Select useful features
+
+Run correlation, mutual information, and Random Forest feature selection:
+
+```powershell
+uv run python select_features.py
+```
+
+The ranked scores, top-20 feature list, and plot are saved in
+`artifacts/feature_selection`. Open `notebooks/02_feature_selection.ipynb` to
+review and compare the three selection methods.
+
 ## PCAP files
 
 PCAP processing is separate from cleaning. CICFlowMeter first converts each
