@@ -52,6 +52,9 @@ Progress bars show which stage is currently running.
 
 ## Explore the data
 
+For a single notebook containing all preprocessing and feature-selection code,
+open `notebooks/00_complete_pipeline.ipynb`.
+
 Open `notebooks/01_explore_data.ipynb` in VS Code, or start Jupyter with:
 
 ```powershell
@@ -72,6 +75,22 @@ uv run python select_features.py
 The ranked scores, top-20 feature list, and plot are saved in
 `artifacts/feature_selection`. Open `notebooks/02_feature_selection.ipynb` to
 review and compare the three selection methods.
+
+## Train the IDS models
+
+Train Random Forest as the main model, with Decision Tree and K-Nearest
+Neighbors (KNN) for comparison:
+
+```powershell
+uv run python train_models.py
+```
+
+Models, evaluation metrics, confusion matrices, and ROC curves are saved in
+`artifacts/models`. The complete training code is also available in
+`notebooks/03_train_models.ipynb`.
+
+KNN uses a stratified 25,000-row sample of the training data and predicts in batches.
+This keeps its memory use and running time reasonable on CICIDS2017.
 
 ## PCAP files
 
