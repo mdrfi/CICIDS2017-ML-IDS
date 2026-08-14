@@ -92,6 +92,35 @@ Models, evaluation metrics, confusion matrices, and ROC curves are saved in
 KNN uses a stratified 25,000-row sample of the training data and predicts in batches.
 This keeps its memory use and running time reasonable on CICIDS2017.
 
+## Predict the attack type
+
+After binary intrusion detection, train a second Random Forest to classify the
+detected attack as DDoS, PortScan, Bot, and the other CIC-IDS2017 attack types:
+
+```powershell
+uv run python train_attack_types.py
+```
+
+The model, normalized confusion matrix, overall metrics, and per-class metrics
+are saved in `artifacts/attack_type_model`. The same workflow is available in
+`notebooks/04_attack_type_classification.ipynb`.
+
+Open `notebooks/05_verify_trained_models.ipynb` to load the saved models and
+inspect test-set predictions, confidence values, errors, confusion matrices,
+and the complete two-stage IDS result without retraining.
+
+## Explain model decisions
+
+Install the optional SHAP dependency and open the explainability notebook:
+
+```powershell
+uv sync --extra notebook --extra explainability
+```
+
+`notebooks/06_model_explainability.ipynb` explains the binary and multiclass
+Random Forests using built-in feature importance, permutation importance, and
+SHAP global and individual explanations.
+
 ## PCAP files
 
 PCAP processing is separate from cleaning. CICFlowMeter first converts each
