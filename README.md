@@ -92,14 +92,14 @@ The processed data keeps three label columns:
 
 | Column | Content | Used by |
 | --- | --- | --- |
-| `is_attack` | 0 or 1 | stage 1 |
-| `attack_category` | `BENIGN` or one of the 12 attack classes | stage 2 |
+| `is_attack` | 0 or 1 | binary intrusion detection |
+| `attack_category` | `BENIGN` or one of the 12 attack classes | attack-type classification |
 | `attack_label` | the original CIC-IDS2017 label | reference |
 
 ## 5. System architecture
 
-The system has two stages. Stage 1 runs first. Stage 2 receives only the flows
-that stage 1 calls an attack.
+The system first performs binary intrusion detection. The attack-type
+classifier receives only the flows identified as attacks.
 
 ```text
 CIC-IDS2017 CSV files
@@ -108,16 +108,16 @@ CIC-IDS2017 CSV files
         |
    Feature selection         (77 features -> 20 features)
         |
-   Stage 1: Random Forest    benign or attack
+   Binary Intrusion Detection: Random Forest    benign or attack
         |
         +-- benign ------------------------> report "BENIGN"
         |
-        +-- attack --> Stage 2: Random Forest --> report the attack class
+        +-- attack --> Attack-Type Classification: Random Forest --> report the attack class
         |
    Performance evaluation
 ```
 
-Stage 1 and stage 2 use the same 20 input features.
+Binary intrusion detection and attack-type classification use the same 20 input features.
 
 ## 6. Data preprocessing
 
@@ -257,10 +257,10 @@ for most attack families.
 
 | Model | Role | Main settings |
 | --- | --- | --- |
-| Random Forest | main model of stage 1 | 100 trees, maximum depth 20, balanced class weights |
+| Random Forest | main binary intrusion-detection model | 100 trees, maximum depth 20, balanced class weights |
 | Decision Tree | comparison model | maximum depth 20, balanced class weights |
 | K-Nearest Neighbors | comparison model | 5 neighbors, distance weights, own scaler |
-| Random Forest | stage 2 model | 150 trees, maximum depth 25, balanced class weights |
+| Random Forest | attack-type classification model | 150 trees, maximum depth 25, balanced class weights |
 
 The attack class is much smaller than the benign class. Balanced class weights
 give the attack class more influence. Without them, a model can call almost
@@ -270,7 +270,7 @@ Every model uses `random_state = 42`, so a new run gives the same result.
 
 ## 9. Training procedure
 
-**Stage 1** (notebook `03_train_models.ipynb`):
+**Binary Intrusion Detection** (notebook `03_train_models.ipynb`):
 
 - Random Forest and Decision Tree train on all 1,998,384 training rows.
 - K-Nearest Neighbors trains on a stratified sample of 25,000 rows. This model
@@ -279,7 +279,7 @@ Every model uses `random_state = 42`, so a new run gives the same result.
 - All three models are measured on the complete test set of 499,596 rows.
 - The prediction runs in batches of 20,000 rows.
 
-**Stage 2** (notebook `04_attack_type_classification.ipynb`):
+**Attack-Type Classification** (notebook `04_attack_type_classification.ipynb`):
 
 - The model trains on the 340,581 attack rows of the training data.
 - The model is measured on the 85,145 attack rows of the test data.
@@ -306,7 +306,7 @@ many attacks the system found.
 All results below come from the complete test set. No model saw this data
 during training or during feature selection.
 
-### Stage 1: benign or attack (499,596 test rows)
+### Binary Intrusion Detection: benign or attack (499,596 test rows)
 
 | Algorithm | Accuracy | Precision | Recall | F1-score | ROC-AUC |
 | --- | --- | --- | --- | --- | --- |
@@ -328,7 +328,7 @@ so this comparison is not equal.
 
 Source: `artifacts/models/model_results.csv`.
 
-### Stage 2: the attack class (85,145 attack rows)
+### Attack-Type Classification (85,145 attack rows)
 
 | Metric | Value |
 | --- | --- |
@@ -357,7 +357,7 @@ Per-class F1-score:
 
 Source: `artifacts/attack_type_model/report.json`.
 
-### The complete two-stage system (499,596 test rows)
+### The complete intrusion-detection system (499,596 test rows)
 
 This is the result that a user of the system sees. Every test flow gets one
 final label: `BENIGN` or one attack class.
@@ -368,23 +368,24 @@ final label: `BENIGN` or one attack class.
 | Macro F1 | 0.9436 |
 | Weighted F1 | 0.9979 |
 | Wrong final labels | 1,233 of 499,596 |
-| Flows that stage 1 calls an attack | 86,229 |
+| Flows identified as attacks by binary intrusion detection | 86,229 |
 
-The system accuracy is a little lower than the stage-1 accuracy. Two errors are
-possible: stage 1 can give the wrong answer, and stage 2 can give the wrong
-attack name. For the flows that stage 1 correctly calls attacks, stage 2 gives
-the correct name in 99.95% of the cases.
+The complete system accuracy is a little lower than the binary-detection
+accuracy. Two errors are possible: binary intrusion detection can give the
+wrong answer, and attack-type classification can give the wrong attack name.
+For flows correctly detected as attacks, the attack-type classifier gives the
+correct name in 99.95% of the cases.
 
-The macro F1 of the system (0.9436) is lower than the macro F1 of stage 2 alone
-(0.9907). The reason is the `BENIGN` class, which now takes part in the mean,
-together with the small classes.
+The macro F1 of the system (0.9436) is lower than the macro F1 of attack-type
+classification alone (0.9907). The reason is the `BENIGN` class, which now
+takes part in the mean, together with the small classes.
 
-Source: `artifacts/evaluation/two_stage_report.json`.
+Source: `artifacts/evaluation/complete_intrusion_detection_report.json`.
 
 ### Note about the target of 99.61%
 
 The task named an expected accuracy of about 99.61%. This project measures
-**99.76%** for stage 1 with Random Forest. The two numbers are close, but they
+**99.76%** for binary intrusion detection with Random Forest. The two numbers are close, but they
 do not come from the same experiment, so they are not directly comparable. The
 result here depends on these choices:
 
@@ -399,7 +400,7 @@ not tune any setting to reach a target value.
 Table 4 of the CIC-IDS2017 paper reports the weighted average of seven
 algorithms. For Random Forest it gives 0.98 precision, 0.97 recall, and 0.97
 F1. For K-Nearest Neighbors it gives 0.96 / 0.96 / 0.96. The paper does not use
-the two-stage design of this project, so these values are a general comparison
+the sequential binary-detection and attack-type-classification design of this project, so these values are a general comparison
 only. The results of this project are in the same range.
 
 ## 12. Model explainability
@@ -429,13 +430,13 @@ the cause of an attack.
 ```text
 CICIDS2017-ML-IDS/
 ├── notebooks/                        # The implementation. Run in this order.
-│   ├── 00_complete_pipeline.ipynb    # Cleaning, split, scaling, feature selection
-│   ├── 01_explore_data.ipynb         # Look at the raw and the processed data
+│   ├── 00_explore_data.ipynb         # Look at the raw and processed data
+│   ├── 01_load_and_clean_data.ipynb  # Cleaning, split, scaling, feature selection
 │   ├── 02_feature_selection.ipynb    # Review the feature-selection results
-│   ├── 03_train_models.ipynb         # Stage 1: RF, Decision Tree, KNN
-│   ├── 04_attack_type_classification.ipynb  # Stage 2: attack class
-│   ├── 05_verify_trained_models.ipynb       # Check the models, measure the system
-│   └── 06_model_explainability.ipynb        # Importance and SHAP
+│   ├── 03_train_models.ipynb         # Binary intrusion detection: RF, Decision Tree, KNN
+│   ├── 04_attack_type_classification.ipynb  # Attack-type classification
+│   ├── 05_model_explainability.ipynb        # Importance and SHAP
+│   └── 06_verify_trained_models.ipynb       # Check the models, measure the system
 ├── dataset/
 │   ├── CSVs/
 │   │   ├── MachineLearningCSV/       # The eight input CSV files
@@ -443,24 +444,17 @@ CICIDS2017-ML-IDS/
 │   └── processed/                    # train.parquet, test.parquet, scaler, report
 ├── artifacts/
 │   ├── feature_selection/            # Scores, selected features, plots
-│   ├── models/                       # Stage-1 models, metrics, plots
-│   ├── attack_type_model/            # Stage-2 model, metrics, confusion matrix
-│   ├── evaluation/                   # Two-stage results
+│   ├── models/                       # Binary-detection models, metrics, plots
+│   ├── attack_type_model/            # Attack-type model, metrics, confusion matrix
+│   ├── evaluation/                   # Complete intrusion-detection results
 │   └── explainability/               # Importance plots and SHAP plots
-├── src/cicids_pipeline/              # Older library version of the pipeline
-├── tests/                            # Tests for the library version
-├── prepare_data.py                   # Older script that calls the library
-├── select_features.py
-├── train_models.py
-├── train_attack_types.py
 ├── pyproject.toml
+├── REPORT_FA.md
 └── README.md
 ```
 
-**Important:** the `src/cicids_pipeline/` package, the four `*.py` scripts, and
-the `tests/` folder are the earlier version of this project. They still run,
-but they do **not** contain the corrections that this README describes. Use the
-notebooks. See "Known limitations".
+The notebooks contain the complete implementation. Earlier duplicate Python
+scripts and their obsolete outputs were removed to keep one source of truth.
 
 ## 14. Installation
 
@@ -553,11 +547,11 @@ again.
 Notebook `05_verify_trained_models.ipynb` loads the saved models and measures
 them again. It does not train anything. It shows:
 
-- the comparison table of the three stage-1 models,
+- the comparison table of the three binary intrusion-detection models,
 - the confusion matrix of each model,
-- the attacks that stage 1 misses, for each attack class,
-- the results of stage 2,
-- the result of the complete two-stage system,
+- the attacks missed by binary intrusion detection, for each attack class,
+- the attack-type classification results,
+- the result of the complete intrusion-detection system,
 - single predictions with the confidence of the model.
 
 The notebook writes its results to `artifacts/evaluation/`.
@@ -598,24 +592,11 @@ Section 4 of notebook 05 contains this code for the test data.
 4. **One split, not cross-validation.** All results come from one split with
    the seed 42. The project does not report a confidence interval.
 
-5. **The features are selected for stage 1.** Stage 2 reuses the same 20
+5. **The features are selected for binary intrusion detection.** Attack-type classification reuses the same 20
    features. A separate selection for each attack class, as Table 3 of the
    paper shows, could give a higher macro F1.
 
-6. **The library version is not corrected.** The `src/cicids_pipeline/` package
-   and the scripts `prepare_data.py`, `select_features.py`, `train_models.py`,
-   and `train_attack_types.py` are the earlier version. They do not group the
-   web attacks, they do not stratify by attack label, and they do not remove
-   the features that repeat each other. The artifacts in this repository come
-   from the notebooks. The tests in `tests/` test the library version only.
-
-7. **Old files are still present.** The files
-   `dataset/processed/features.json`,
-   `dataset/processed/preprocessing_manifest.json`, and
-   `dataset/processed/*.executed.ipynb` come from earlier runs. No notebook
-   reads or writes them. You can delete them.
-
-8. **The system detects known attack types only.** The models learn from
+6. **The system detects known attack types only.** The models learn from
    labelled examples. A new attack that does not look like the training data
    can pass without an alert.
 
